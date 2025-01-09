@@ -1,0 +1,281 @@
+[
+    {
+        "id": "a3d1e43acf796ed7",
+        "type": "tab",
+        "label": "Flow_Ui_stable_tts_active",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "defddb4bf601dfcd",
+        "type": "ui_gauge",
+        "z": "a3d1e43acf796ed7",
+        "name": "Temperature Gauge",
+        "group": "f4e29f99.0f3a1",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "gtype": "donut",
+        "title": "Temperature",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": "-5",
+        "max": "50",
+        "colors": [
+            "#001eb3",
+            "#00e2e6",
+            "#3acb87"
+        ],
+        "seg1": "10",
+        "seg2": "30",
+        "diff": false,
+        "x": 720,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "6f56d8621a72eff5",
+        "type": "http in",
+        "z": "a3d1e43acf796ed7",
+        "name": "Temperature Sensor",
+        "url": "/temp_sensor",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 210,
+        "y": 280,
+        "wires": [
+            [
+                "7c1f5b6fa6814c50"
+            ]
+        ]
+    },
+    {
+        "id": "7c1f5b6fa6814c50",
+        "type": "function",
+        "z": "a3d1e43acf796ed7",
+        "name": "Temperature Processing",
+        "func": "var temperature = msg.payload.temperature;\n\n// Ensure the temperature is a number\ntemperature = parseFloat(temperature);\nmsg.payload = { \"temperature\": temperature };\n\n// Check for significant temperature changes\nvar lastTemperature = flow.get('lastTemperature') || null;\nif (lastTemperature !== null && Math.abs(temperature - lastTemperature) >= 5) {\n    node.send([{ \n        payload: {\n            alert: \"Temperature changed significantly\",\n            temperature: temperature\n        }\n    }, null]);\n}\n\n// Store the last temperature\nflow.set('lastTemperature', temperature);\nreturn [null, msg];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 280,
+        "wires": [
+            [
+                "1899db60bda119a5",
+                "5e65c1ccf5e1b8fa"
+            ],
+            [
+                "defddb4bf601dfcd",
+                "6c27ead55a92a60e"
+            ]
+        ]
+    },
+    {
+        "id": "6c27ead55a92a60e",
+        "type": "http response",
+        "z": "a3d1e43acf796ed7",
+        "name": "Temperature Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 730,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "1899db60bda119a5",
+        "type": "function",
+        "z": "a3d1e43acf796ed7",
+        "name": "Alert Processing",
+        "func": "msg.payload = \"Temperature Alert: \" + msg.payload.temperature + \"°C\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 260,
+        "wires": [
+            [
+                "439b8df08268a6f1"
+            ]
+        ]
+    },
+    {
+        "id": "439b8df08268a6f1",
+        "type": "ui_text",
+        "z": "a3d1e43acf796ed7",
+        "group": "f4e29f99.0f3a1",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "name": "Temperature Alert",
+        "label": "Alert: ",
+        "format": "{{msg.payload}}",
+        "layout": "row-left",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": "",
+        "color": "#000000",
+        "x": 910,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "e8f3b019cf5563ad",
+        "type": "http in",
+        "z": "a3d1e43acf796ed7",
+        "name": "Reed Switch",
+        "url": "/reed_sensor",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 190,
+        "y": 120,
+        "wires": [
+            [
+                "a955c3e523bc8c66"
+            ]
+        ]
+    },
+    {
+        "id": "a955c3e523bc8c66",
+        "type": "function",
+        "z": "a3d1e43acf796ed7",
+        "name": "Reed Switch Processing",
+        "func": "var reedState = msg.payload.reed_state;\n\n// Convert reed state to text\nvar reedStateText = reedState === 0 ? \"closed\" : \"open\";\n\n// Send to UI\nmsg.payload = { \"reed_state\": reedStateText };\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 120,
+        "wires": [
+            [
+                "5aa50e92b34ce665",
+                "a7c746c3b4413345",
+                "55ced86c9b24a6bc"
+            ]
+        ]
+    },
+    {
+        "id": "5aa50e92b34ce665",
+        "type": "ui_text",
+        "z": "a3d1e43acf796ed7",
+        "group": "f4e29f99.0f3a1",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "Reed State Text",
+        "label": "The window is ",
+        "format": "{{msg.payload.reed_state}}",
+        "layout": "",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": "",
+        "color": "#000000",
+        "x": 660,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "a7c746c3b4413345",
+        "type": "http response",
+        "z": "a3d1e43acf796ed7",
+        "name": "Reed Switch Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 690,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "567d316ef2a08365",
+        "type": "play audio",
+        "z": "a3d1e43acf796ed7",
+        "name": "Play Audio",
+        "voice": "0",
+        "x": 890,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "55ced86c9b24a6bc",
+        "type": "function",
+        "z": "a3d1e43acf796ed7",
+        "name": "state_window_speach",
+        "func": "// Hole den Zustand des Reed-Sensors\nvar reedState = msg.payload.reed_state;\n\n// Verarbeite den Zustand\nif (reedState === 0) {\n    msg.payload = \"Fenster geöffnet.\";\n} else if (reedState === null || reedState === undefined) {\n    msg.payload = \"Fenster geschlossen.\";\n} else {\n    msg.payload = \"Unbekannter Zustand des Fensters.\";\n}\n\n// Gebe die Nachricht zurück\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 100,
+        "wires": [
+            [
+                "567d316ef2a08365"
+            ]
+        ]
+    },
+    {
+        "id": "5e65c1ccf5e1b8fa",
+        "type": "function",
+        "z": "a3d1e43acf796ed7",
+        "name": "state_window_speach",
+        "func": "\nmsg.payload = \"Starker Temperaturabfall. Fenster schließen.\";\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 220,
+        "wires": [
+            [
+                "aaed5af214989c13"
+            ]
+        ]
+    },
+    {
+        "id": "aaed5af214989c13",
+        "type": "play audio",
+        "z": "a3d1e43acf796ed7",
+        "name": "Play Audio",
+        "voice": "0",
+        "x": 930,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "f4e29f99.0f3a1",
+        "type": "ui_group",
+        "name": "Default",
+        "tab": "5f9b725e.666c4",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "5f9b725e.666c4",
+        "type": "ui_tab",
+        "name": "Home",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]
