@@ -9,8 +9,8 @@ import os  # Importiert das Modul für Betriebssystemfunktionen (Dateisystem)
 debug_bool = False  # Aktiviert den Debug-Modus, der detaillierte Ausgaben ermöglicht.
 
 # WLAN-Zugangsdaten
-SSID = '@Home'  # Der WLAN-Name (SSID)
-PASSWORD = 'th!s !s a test for wlan'  # Das WLAN-Passwort
+SSID = 'WLAN'  # Der WLAN-Name (SSID)
+PASSWORD = 'PASSWORT'  # Das WLAN-Passwort
 
 # Node-RED URLs
 node_red_url_reed = 'http://192.168.0.58:1880/reed_sensor'  # URL für den Reed-Sensor in Node-RED
