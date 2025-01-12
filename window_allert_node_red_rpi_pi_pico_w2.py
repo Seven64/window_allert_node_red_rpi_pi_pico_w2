@@ -1,153 +1,205 @@
-import machine  # Importiert das Modul für die Steuerung der Hardware (Pins, etc.)
-import time  # Importiert das Modul für Zeitfunktionen (Schlafpausen, aktuelle Zeit)
-import urequests  # Importiert das Modul für HTTP-Anfragen (POST, GET)
-import network  # Importiert das Modul für Netzwerkfunktionen (Wi-Fi, WLAN-Verbindung)
-import ds18x20  # Importiert das Modul für den DS18x20 Temperaturfühler
-import onewire  # Importiert das Modul für den OneWire Bus, der für den DS18x20 verwendet wird
-import os  # Importiert das Modul für Betriebssystemfunktionen (Dateisystem)
+import machine
+import time
+import urequests
+import network
+import ds18x20
+import onewire
+import os
 
-debug_bool = False  # Aktiviert den Debug-Modus, der detaillierte Ausgaben ermöglicht.
+"""
+Beim setzen der Werte 'True'/'False' werden die Print Ausgaben aktiviert oder deaktiviert.
+Dies ist nötig um den Betrieb des Raspberry Pi Pico 2W an einer Powerbank zu ermöglichen, da dort kein Terminal Existiert, an das der RPi seine Ausgaben senden kann.
+"""
 
-# WLAN-Zugangsdaten
-SSID = 'WLAN'  # Der WLAN-Name (SSID)
-PASSWORD = 'PASSWORT'  # Das WLAN-Passwort
+DEBUG = True
 
-# Node-RED URLs
-node_red_url_reed = 'http://192.168.0.58:1880/reed_sensor'  # URL für den Reed-Sensor in Node-RED
-node_red_url_temp = 'http://192.168.0.58:1880/temp_sensor'  # URL für den Temperatur-Sensor in Node-RED
-node_red_url_alert = 'http://192.168.0.58:1880/temp_alert'  # URL für die Temperaturwarnung in Node-RED
+NODE_RED_URL_REED = 'http://192.168.0.58:1880/reed_sensor'
+NODE_RED_URL_TEMP = 'http://192.168.0.58:1880/temp_sensor'
+NODE_RED_URL_ALERT = 'http://192.168.0.58:1880/temp_alert'
 
-# Pin-Definitionen
-reed_pin = machine.Pin(17, machine.Pin.IN, machine.Pin.PULL_UP)  # Definiert den Pin für den Reed-Sensor (Eingang, Pull-up-Widerstand)
-ow_pin = machine.Pin(16)  # Definiert den Pin für den OneWire-Bus (Temperatursensor)
+REED_PIN = machine.Pin(17, machine.Pin.IN, machine.Pin.PULL_UP)
+OW_PIN = machine.Pin(16)
 
-# Initialisierung des OneWire-Busses für den Temperatursensor
-ow_bus = onewire.OneWire(ow_pin)  # Initialisiert den OneWire-Bus
-ds_sensor = ds18x20.DS18X20(ow_bus)  # Initialisiert den DS18x20 Temperatursensor
+ow_bus = onewire.OneWire(OW_PIN)
+ds_sensor = ds18x20.DS18X20(ow_bus)
 
-# Logdatei Pfad
-log_file_path = "log.csv"  # Definiert den Pfad der Logdatei
+WIFI_FILE_PATH = "wifi.txt"
+LOG_FILE_PATH = "log.csv"
 
-# WLAN-Verbindung herstellen
+def read_wifi_credentials():
+    """
+    Liest 'SSID' und 'PASSWORT' aus der Textdatei 'wifi.txt' aus.
+    Erwartet wird folgendes Format: 'SSID,Password'.
+    """
+    try:
+        with open(WIFI_FILE_PATH, 'r') as file:
+            line = file.readline().strip()
+            ssid, password = line.split(',')
+            return ssid, password
+    except Exception as e:
+        if DEBUG:
+            print(f"Fehler beim Lesen der Wi-Fi-Anmeldedaten: {e}")
+        return None, None
+
 def connect_wifi():
-    wlan = network.WLAN(network.STA_IF)  # Initialisiert das WLAN im Station-Modus
-    wlan.active(True)  # Aktiviert das WLAN
-    if not wlan.isconnected():  # Überprüft, ob die Verbindung besteht
-        wlan.connect(SSID, PASSWORD)  # Versucht, sich mit dem WLAN zu verbinden
-        while not wlan.isconnected():  # Wartet, bis die Verbindung hergestellt ist
-            time.sleep(0.5)  # Kurze Pause, um den Status regelmäßig zu prüfen
-            if debug_bool:  # Falls der Debug-Modus aktiviert ist
-                print(".", end="")  # Ausgabe von Punkten, um den Verbindungsversuch anzuzeigen
-    if debug_bool:  # Falls der Debug-Modus aktiviert ist
-        print("\nWi-Fi connected:", wlan.ifconfig())  # Gibt die IP-Adresse nach erfolgreicher Verbindung aus
+    """
+    Stellt eine Verbindung zum Wi-Fi-Netzwerk her, indem die Anmeldedaten aus 'wifi.txt' verwendet werden.
+    """
+    ssid, password = read_wifi_credentials()
 
-# Daten an Node-RED senden
+    if ssid is None or password is None:
+        if DEBUG:
+            print("Wi-Fi-Anmeldedaten fehlen oder sind falsch.")
+        return
+
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+
+    if not wlan.isconnected():
+        wlan.connect(ssid, password)
+        while not wlan.isconnected():
+            time.sleep(0.5)
+            if DEBUG:
+                print(".", end="")
+    
+    if DEBUG:
+        print("\nWi-Fi verbunden:", wlan.ifconfig())
+
 def send_data(payload, url, retries=3):
-    for attempt in range(retries):  # Versucht es mehrfach (mit der angegebenen Anzahl an Versuchen)
+    """
+    Sendet Daten an den angegebenen Node-RED-Endpunkt mit einer Wiederholungslogik.
+    """
+    for attempt in range(retries):
         try:
-            if debug_bool:  # Falls der Debug-Modus aktiviert ist
-                print(f"Sending payload: {payload}")  # Zeigt die gesendeten Daten an
-            response = urequests.post(url, json=payload, timeout=30)  # Sendet die POST-Anfrage an Node-RED
-            response.close()  # Schließt die Antwort, nachdem sie erhalten wurde
-            if response.status_code == 200:  # Erfolgreiche Antwort (HTTP 200)
-                return  # Beendet die Funktion
-            else:  # Bei einem anderen Statuscode
-                print(f"Node-RED error: {response.status_code}")  # Zeigt den Fehlerstatus an
-        except Exception as e:  # Fehlerbehandlung bei der Anfrage
-            print(f"Error sending data (Attempt {attempt + 1}/{retries}):", e)  # Gibt den Fehler aus
-            time.sleep(5)  # Pause zwischen den Versuchen
-    print("Failed to send data after multiple attempts.")  # Gibt aus, dass alle Versuche fehlgeschlagen sind
+            if DEBUG:
+                print(f"Sende Nutzdaten: {payload}")
+            response = urequests.post(url, json=payload, timeout=30)
+            response.close()
 
-# Temperatur vom DS18x20 Sensor auslesen
+            if response.status_code == 200:
+                return
+            else:
+                print(f"Node-RED gab einen Fehler zurück: {response.status_code}")
+        except Exception as e:
+            print(f"Fehler beim Senden der Daten (Versuch {attempt + 1}/{retries}):", e)
+            time.sleep(5)
+    print("Fehler beim Senden der Daten nach mehreren Versuchen.")
+
 def read_temperature():
-    devices = ds_sensor.scan()  # Sucht nach verbundenen DS18x20 Geräten
-    if not devices:  # Wenn keine Geräte gefunden wurden
-        if debug_bool:  # Falls der Debug-Modus aktiviert ist
-            print("No DS18x20 devices found.")  # Gibt aus, dass keine Geräte gefunden wurden
-        return None  # Gibt None zurück
-    ds_sensor.convert_temp()  # Startet die Temperaturmessung
-    time.sleep(1)  # Wartet 1 Sekunde, um dem Sensor Zeit zu geben
-    return ds_sensor.read_temp(devices[0])  # Gibt die gemessene Temperatur zurück
+    """
+    Liest die Temperatur vom DS18x20-Sensor aus.
+    """
+    devices = ds_sensor.scan()
+    
+    if not devices:
+        if DEBUG:
+            print("Keine DS18x20-Geräte gefunden.")
+        return None
 
-# Logdatei initialisieren
+    ds_sensor.convert_temp()
+    time.sleep(1)
+    temperature = ds_sensor.read_temp(devices[0])
+    
+    return temperature
+
 def initialize_log_file():
-    if log_file_path not in os.listdir():  # Überprüft, ob die Logdatei bereits existiert
-        with open(log_file_path, "w") as log_file:  # Erstellt die Logdatei
-            log_file.write("Index,Date,Time,Temperature,Status\n")  # Schreibt die Headerzeile in die Logdatei
-        return 0  # Wenn die Datei neu erstellt wurde, startet der Index bei 0
-    else:
-        # Wenn die Logdatei existiert, den höchsten Index aus der Datei ermitteln
-        with open(log_file_path, "r") as log_file:
+    """
+    Initialisiert die Logdatei, wenn sie noch nicht existiert.
+    """
+    if LOG_FILE_PATH not in os.listdir():
+        with open(LOG_FILE_PATH, "w") as log_file:
+            log_file.write("Index,Date,Time,Temperature,Status\n")
+
+def get_last_log_index():
+    """
+    Liest den letzten Index aus der Logdatei. Wenn die Datei leer ist oder nicht existiert, wird 0 zurückgegeben.
+    """
+    try:
+        with open(LOG_FILE_PATH, "r") as log_file:
             lines = log_file.readlines()
-            last_line = lines[-1] if lines else None
-            if last_line:
-                last_index = int(last_line.split(",")[0])  # Der Index befindet sich in der ersten Spalte
-                return last_index + 1  # Erhöht den letzten Index um 1
-            return 0  # Falls die Datei leer ist, startet der Index bei 0
+            if len(lines) > 0:
+                # Die letzte Zeile hat den höchsten Index
+                last_line = lines[-1]
+                last_index = int(last_line.split(',')[0])  # Der Index ist die erste Zahl in der Zeile
+                return last_index + 1  # Starten beim nächsten Index
+    except OSError:  # Falls die Datei nicht existiert
+        return 0  # Wenn die Datei leer oder nicht vorhanden ist, fangen wir bei 0 an
 
-# Eintrag zur Logdatei hinzufügen
 def append_to_log(index, date, time_str, temperature, status):
-    with open(log_file_path, "a") as log_file:  # Öffnet die Logdatei zum Anhängen
-        log_file.write(f"{index},{date},{time_str},{temperature},{status}\n")  # Fügt einen neuen Logeintrag hinzu
+    """
+    Fügt einen neuen Eintrag in die Logdatei ein.
+    """
+    with open(LOG_FILE_PATH, "a") as log_file:
+        log_file.write(f"{index},{date},{time_str},{temperature},{status}\n")
+    log_index += 1  # Erhöhen des Index nach jedem Log-Eintrag
+        
 
-# Temperaturdifferenz prüfen (nur bei sinkender Temperatur)
 def check_temperature_difference(last_temp, current_temp):
-    if last_temp is not None and current_temp is not None:  # Überprüft, ob beide Temperaturwerte vorhanden sind
-        if current_temp < last_temp:  # Nur bei einer sinkenden Temperatur eine Änderung feststellen
-            temp_diff = last_temp - current_temp  # Berechne die Differenz
-            if temp_diff >= 2:  # Wenn die Temperatur um mindestens 2°C gesunken ist
-                return temp_diff  # Gibt die Differenz zurück
-    return None  # Gibt None zurück, wenn keine signifikante Differenz festgestellt wurde
+    """
+    Überprüft, ob die Temperatur gesenkt wurde und die Differenz einen Schwellenwert von 2°C überschreitet.
+    """
+    if last_temp is not None and current_temp is not None:
+        temp_diff = last_temp - current_temp  # Temperaturdifferenz (abfallend)
+        if temp_diff >= 2:  # Wenn die Temperatur um 2°C oder mehr gesenkt wurde
+            return temp_diff
+    return None  # Keine signifikante Abkühlung
 
-# Hauptlogik
 def main():
-    reed_last_state = reed_pin.value()  # Liest den letzten Zustand des Reed-Sensors
-    temp_last_value = None  # Initialisiert die Variable für den letzten Temperaturwert
-    log_index = initialize_log_file()  # Ruft die Funktion auf, um den Logindex zu ermitteln
-    alert_sent = False  # Initialisiert den Alarm-Status
+    reed_last_state = REED_PIN.value()
+    temp_last_value = None
+    log_index = get_last_log_index()  # Hole den letzten Index aus der Logdatei
+    alert_sent = False
 
     try:
-        connect_wifi()  # Stellt die WLAN-Verbindung her
+        connect_wifi()
+        initialize_log_file()
 
-        while True:  # Startet eine Endlosschleife
-            reed_state = reed_pin.value()  # Liest den aktuellen Zustand des Reed-Sensors
-            if reed_state != reed_last_state:  # Wenn sich der Zustand des Reed-Sensors geändert hat
-                reed_last_state = reed_state  # Aktualisiert den letzten Zustand
-                temp_value = read_temperature()  # Liest die aktuelle Temperatur
-                if temp_value is not None:  # Wenn die Temperatur erfolgreich gelesen wurde
-                    temp_last_value = temp_value  # Setzt den letzten bekannten Temperaturwert
+        # Einmalige Initialisierung des Reed-Sensors und Senden des aktuellen Status
+        reed_state = REED_PIN.value()
+        send_data({"reed_state": reed_state}, NODE_RED_URL_REED)
 
-                current_time = time.localtime()  # Holt die aktuelle Zeit
-                date_str = f"{current_time[2]:02d}/{current_time[1]:02d}/{current_time[0]}"  # Formatiert das Datum
-                time_str = f"{current_time[3]:02d}:{current_time[4]:02d}:{current_time[5]:02d}"  # Formatiert die Uhrzeit
+        while True:
+            reed_state = REED_PIN.value()
+            if DEBUG:
+                print(f"Aktueller Reed-Zustand: {reed_state}")
 
-                temperature = temp_last_value if temp_last_value is not None else "N/A"  # Setzt die Temperatur (falls vorhanden)
-                append_to_log(log_index, date_str, time_str, temperature, reed_state)  # Fügt einen Logeintrag hinzu
-                log_index += 1  # Erhöht den Log-Index
-                send_data({"reed_state": reed_state}, node_red_url_reed)  # Sendet den Zustand des Reed-Sensors an Node-RED
+            if reed_state != reed_last_state:
+                reed_last_state = reed_state
 
-            # Temperaturänderung prüfen
-            temp_value = read_temperature()  # Liest die aktuelle Temperatur
-            if temp_value is not None:  # Wenn die Temperatur erfolgreich gelesen wurde
-                temp_diff = check_temperature_difference(temp_last_value, temp_value)  # Prüft die Temperaturdifferenz
-                if temp_diff is not None:  # Wenn eine signifikante Temperaturänderung festgestellt wurde
-                    # Alarm senden, wenn eine signifikante Temperaturverringerung festgestellt wurde
-                    send_data({"alert": "Temperature decreased significantly", "temperature": temp_value}, node_red_url_alert)
-                    # Danach keine separate Temperatur mehr senden
-                    alert_sent = True  # Alarm wurde gesendet
-                    temp_last_value = temp_value  # Setzt den letzten bekannten Temperaturwert
-            else:  # Wenn die Temperaturmessung fehlschlägt
-                if debug_bool:  # Falls der Debug-Modus aktiviert ist
-                    print("Temperature reading failed.")  # Gibt aus, dass die Temperaturmessung fehlgeschlagen ist
+                temp_value = read_temperature()
+                if temp_value is not None:
+                    temp_last_value = temp_value
 
-            time.sleep(4)  # Pause vor der nächsten Iteration
+                current_time = time.localtime()
+                date_str = f"{current_time[2]:02d}/{current_time[1]:02d}/{current_time[0]}"
+                time_str = f"{current_time[3]:02d}:{current_time[4]:02d}:{current_time[5]:02d}"
 
-            # Reset-Flag für den nächsten Loop
-            alert_sent = False  # Setzt das Flag für den Alarm zurück
+                temperature = temp_last_value if temp_last_value is not None else "N/A"
 
-    except Exception as e:  # Fehlerbehandlung für die Hauptlogik
-        print(f"Error in main loop: {e}")  # Gibt den Fehler aus
+                append_to_log(log_index, date_str, time_str, temperature, reed_state)
 
-# Starten der Hauptfunktion
-main()  # Ruft die Hauptfunktion auf und startet das Programm
+                send_data({"reed_state": reed_state}, NODE_RED_URL_REED)
 
+            temp_value = read_temperature()
+            if temp_value is not None:
+                temp_diff = check_temperature_difference(temp_last_value, temp_value)
+                if temp_diff is not None:
+                    if not alert_sent:
+                        send_data({"alert": "Temperaturabfall erkannt", "temperature": temp_value}, NODE_RED_URL_ALERT)
+                        alert_sent = True
+                    temp_last_value = temp_value
+
+                if temp_diff is not None:
+                    send_data({"temperature": temp_value}, NODE_RED_URL_TEMP)
+
+            else:
+                if DEBUG:
+                    print("Temperaturmessung fehlgeschlagen.")
+
+            time.sleep(4)
+            alert_sent = False
+
+    except Exception as e:
+        print(f"Fehler in der Hauptschleife: {e}")
+
+main()
