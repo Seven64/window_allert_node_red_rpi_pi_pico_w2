@@ -1,13 +1,5 @@
 [
     {
-        "id": "a3d1e43acf796ed7",
-        "type": "tab",
-        "label": "Flow_Ui_stable_tts_active",
-        "disabled": false,
-        "info": "",
-        "env": []
-    },
-    {
         "id": "e8f3b019cf5563ad",
         "type": "http in",
         "z": "a3d1e43acf796ed7",
@@ -38,7 +30,7 @@
         "finalize": "",
         "libs": [],
         "x": 570,
-        "y": 100,
+        "y": 80,
         "wires": [
             [
                 "5aa50e92b34ce665",
@@ -64,7 +56,7 @@
         "fontSize": "",
         "color": "#000000",
         "x": 820,
-        "y": 120,
+        "y": 100,
         "wires": []
     },
     {
@@ -75,7 +67,7 @@
         "statusCode": "200",
         "headers": {},
         "x": 850,
-        "y": 80,
+        "y": 60,
         "wires": []
     },
     {
@@ -85,7 +77,7 @@
         "name": "Play Audio",
         "voice": "3",
         "x": 810,
-        "y": 160,
+        "y": 140,
         "wires": []
     },
     {
@@ -93,7 +85,7 @@
         "type": "function",
         "z": "a3d1e43acf796ed7",
         "name": "state_window_speach",
-        "func": "// Hole den Zustand des Reed-Sensors\nvar reedState = msg.payload.reed_state;\n\n// Verarbeite den Zustand\nif (reedState === 1) {\n    msg.payload = \"Fenster geöffnet.\";\n} else if (reedState === 0 || reedState === undefined) {\n    msg.payload = \"Fenster geschlossen.\";\n} else {\n    msg.payload = \"Unbekannter Zustand des Fensters.\";\n}\n\n// Gebe die Nachricht zurück\nreturn msg;\n",
+        "func": "// Hole den Zustand des Reed-Sensors\nvar reedState = msg.payload.reed_state;\n\n// Verarbeite den Zustand\nif (reedState === 1) {\n    msg.payload = \"Fennster geöffnet!\";\n} else if (reedState === 0 || reedState === undefined) {\n    msg.payload = \"Fenster geschlossen!\";\n} else {\n    msg.payload = \"Unbekannter Zustand des Fensters.\";\n}\n\n// Gebe die Nachricht zurück\nreturn msg;\n",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -117,7 +109,7 @@
         "method": "post",
         "upload": false,
         "swaggerDoc": "",
-        "x": 300,
+        "x": 310,
         "y": 340,
         "wires": [
             [
@@ -130,7 +122,7 @@
         "type": "function",
         "z": "a3d1e43acf796ed7",
         "name": "Alert Processing",
-        "func": "var alert = msg.payload.alert;\nvar temperature = msg.payload.temperature;\n\n// Setze den Payload für die Ausgabe\nmsg.payload = \"Temperaturänderung erkannt! Fenster schließen!\";\nreturn msg;",
+        "func": "var alert = msg.payload.alert;\n\nvar temperature = msg.payload.temperature;\n\n// Setze den Payload für die Ausgabe\nmsg.payload = \"Temperaturabfall erkannt, bitte Fenster schließen!\";\n\n//var alertStateText = \"Temperaturabfall erkannt, bitte Fenster schließen!\"\n//msg.payload = { \"alert_state\": alertStateText };\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -142,7 +134,8 @@
         "wires": [
             [
                 "708e09cdf76be208",
-                "cf73a5bc792708b6"
+                "cf73a5bc792708b6",
+                "0bb7c3743486740d"
             ]
         ]
     },
@@ -153,7 +146,7 @@
         "name": "Play Audio",
         "voice": "3",
         "x": 810,
-        "y": 360,
+        "y": 340,
         "wires": []
     },
     {
@@ -192,7 +185,28 @@
         "statusCode": "200",
         "headers": {},
         "x": 820,
-        "y": 320,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "0bb7c3743486740d",
+        "type": "ui_text",
+        "z": "a3d1e43acf796ed7",
+        "group": "f4e29f99.0f3a1",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "Reed State Text",
+        "label": "The window is ",
+        "format": "{{msg.payload.alert_state}}",
+        "layout": "",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": "",
+        "color": "#000000",
+        "x": 820,
+        "y": 380,
         "wires": []
     },
     {
