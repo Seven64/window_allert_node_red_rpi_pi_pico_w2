@@ -9,16 +9,17 @@ import ntptime
 
 DEBUG = True
 RETRY_ATTEMPTS = 3
-SENSOR_READ_INTERVAL = 4  # Sensorabfrageinterval in Sekunden
+SENSOR_READ_INTERVAL = 4  # Sensorabfrageintervall in Sekunden
 TEMP_ALERT_THRESHOLD = 2  # Temperaturunterschied in °C
 
-# Netzwerk-Konfiguration
+# Netzwerk-Konfiguration (SSID, Passwort und URL des Node-RED-Servers)
 WIFI_CONFIG = [
-    {"ssid": "SSID_1", "password": "PASSWORD_1"},
-    {"ssid": "SSID_2", "password": "PASSWORD_2"}
+    {"ssid": "G101", "password": "G101bbzvk", "url": "http://192.168.0.58:1880"},
+    {"ssid": "@Home", "password": "th!s !s a test for wlan", "url": "http://192.168.0.58:1880"},
+    {"ssid": "Pixel_4813", "password": "9ad702b6c353", "url": "http://10.242.217.27:1880"}
 ]
 
-NODE_RED_BASE_URL = "http://192.168.0.199:1880"
+NODE_RED_BASE_URL = ""  # Wird später aus der Konfiguration gesetzt
 ENDPOINTS = {
     "reed": "/reed_sensor",
     "temp": "/temp_sensor",
@@ -31,7 +32,6 @@ PIN_CONFIG = {
     "onewire": 16
 }
 
-
 ow = onewire.OneWire(machine.Pin(PIN_CONFIG["onewire"]))
 ds = ds18x20.DS18X20(ow)
 devices = ds.scan()
@@ -40,6 +40,8 @@ reed = machine.Pin(PIN_CONFIG["reed"], machine.Pin.IN, machine.Pin.PULL_UP)
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
+    
+    global NODE_RED_BASE_URL  
     
     for network_config in WIFI_CONFIG:
         if DEBUG:
@@ -52,6 +54,8 @@ def connect_wifi():
                 if DEBUG:
                     print("Verbunden!")
                     print("IP:", wlan.ifconfig()[0])
+                NODE_RED_BASE_URL = network_config["url"]  
+                print(f"Verwendete URL für Node-RED: {NODE_RED_BASE_URL}")
                 sync_time()
                 return True
             time.sleep(0.5)
@@ -144,7 +148,6 @@ def main():
 
     # Initialzustand senden, Erstausführung
     send_data(NODE_RED_BASE_URL + ENDPOINTS["reed"], {"reed_state": last_reed_state})
-
     while True:
         # Reed-Sensor prüfen
         current_reed = reed.value()
@@ -183,3 +186,4 @@ if __name__ == "__main__":
     except Exception as e:
         if DEBUG:
             print("Kritischer Fehler:", e)
+
