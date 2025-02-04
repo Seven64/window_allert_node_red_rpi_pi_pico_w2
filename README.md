@@ -27,8 +27,8 @@ Bearbeite die folgenden Abschnitte im Code, um deine WLAN-Daten anzugeben:
 
 ```python
 WIFI_CONFIG = [
-    {"ssid": "G101", "password": "G101bbzvk"},
-    {"ssid": "@Home", "password": "th!s !s a test for wlan"}
+    {"ssid": "SSID_1", "password": "PASSWORD_1"},
+    {"ssid": "SSID_2", "password": "PASSWORD_2"}
 ]
 ```
 
