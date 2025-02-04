@@ -14,9 +14,9 @@ TEMP_ALERT_THRESHOLD = 2  # Temperaturunterschied in °C
 
 # Netzwerk-Konfiguration (SSID, Passwort und URL des Node-RED-Servers)
 WIFI_CONFIG = [
-    {"ssid": "G101", "password": "G101bbzvk", "url": "http://192.168.0.58:1880"},
-    {"ssid": "@Home", "password": "th!s !s a test for wlan", "url": "http://192.168.0.58:1880"},
-    {"ssid": "Pixel_4813", "password": "9ad702b6c353", "url": "http://10.242.217.27:1880"}
+    {"ssid": "SSID_1", "password": "PASSWORT_1", "url": "http://192.168.0.58:1880"},
+    {"ssid": "SSID_2", "password": "PASSWORT_2", "url": "http://192.168.0.58:1880"},
+    {"ssid": "SSID_3", "password": "PASSWORT_3", "url": "http://10.242.217.27:1880"}
 ]
 
 NODE_RED_BASE_URL = ""  # Wird später aus der Konfiguration gesetzt
