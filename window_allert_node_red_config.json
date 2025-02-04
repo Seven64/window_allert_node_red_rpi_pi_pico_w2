@@ -197,7 +197,7 @@
         "width": 0,
         "height": 0,
         "name": "Reed State Text",
-        "label": "The window is ",
+        "label": "Warning: ",
         "format": "{{msg.payload.alert_state}}",
         "layout": "",
         "className": "",
