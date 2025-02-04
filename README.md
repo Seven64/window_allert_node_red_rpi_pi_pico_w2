@@ -1,7 +1,7 @@
 # Node-RED Sensor Code
 
 ## Übersicht
-Dieses Python-Skript ermöglicht die Überwachung eines Reed-Sensors und eines DS18x20-Temperatursensors. Es sendet Sensordaten an Node-RED-HTTP-Endpunkte und protokolliert Ereignisse in einer Logdatei.
+Dieses Python-Skript überwacht einen Reed-Sensor und einen DS18x20-Temperatursensor. Es sendet Sensordaten an Node-RED-HTTP-Endpunkte und protokolliert Ereignisse in einer Logdatei.
 
 ## Anforderungen
 - MicroPython-kompatibles Gerät (z. B. ESP32 oder ESP8266)
@@ -19,24 +19,29 @@ Die folgenden MicroPython-Bibliotheken werden benötigt:
 - `ds18x20` (für DS18x20-Sensoren)
 - `onewire` (für das OneWire-Protokoll)
 - `os` (für Dateiverwaltung)
+- `ntptime` (für Zeitsynchronisation)
 
 ## Setup
 ### WLAN-Zugangsdaten
 Bearbeite die folgenden Abschnitte im Code, um deine WLAN-Daten anzugeben:
 
 ```python
-# WLAN-Zugangsdaten (z. B. für Zuhause oder Schule)
-SSID = 'DeinSSID'  # Netzwerkname
-PASSWORD = 'DeinPasswort'  # Netzwerkpasswort
+WIFI_CONFIG = [
+    {"ssid": "G101", "password": "G101bbzvk"},
+    {"ssid": "@Home", "password": "th!s !s a test for wlan"}
+]
 ```
 
 ### Node-RED-URLs
 Passe die Endpunkte für deinen Node-RED-Server an:
 
 ```python
-node_red_url_reed = 'http://<IP-Adresse>:1880/reed_sensor'
-node_red_url_temp = 'http://<IP-Adresse>:1880/temp_sensor'
-node_red_url_alert = 'http://<IP-Adresse>:1880/temp_alert'
+NODE_RED_BASE_URL = "http://192.168.0.199:1880"
+ENDPOINTS = {
+    "reed": "/reed_sensor",
+    "temp": "/temp_sensor",
+    "alert": "/temp_alert"
+}
 ```
 
 ### Hardware-Anschluss
@@ -46,22 +51,28 @@ Verwende die folgenden GPIO-Pins für die Sensoren:
 
 ## Funktionen
 ### `connect_wifi()`
-Verbindet das Gerät mit dem angegebenen WLAN.
+Verbindet das Gerät mit einem der angegebenen WLAN-Netzwerke. Falls eine Verbindung erfolgreich ist, wird die Systemzeit synchronisiert.
 
-### `send_data(payload, url, retries=3)`
-Sendet Daten als HTTP-POST-Anfrage an den angegebenen Node-RED-Endpunkt. Wiederholt die Anfrage bei Fehlern.
+### `sync_time()`
+Synchronisiert die Systemzeit mit einem NTP-Server.
+
+### `get_formatted_time()`
+Liefert das aktuelle Datum und die aktuelle Uhrzeit als formatierte Zeichenkette.
 
 ### `read_temperature()`
 Liest die Temperatur vom DS18x20-Sensor aus und gibt den Wert zurück.
 
-### `initialize_log_file()`
-Initialisiert die Logdatei, falls sie nicht existiert.
+### `send_data(url, data)`
+Sendet JSON-Daten an den angegebenen Node-RED-Endpunkt per HTTP-POST-Anfrage mit Wiederholungsmechanismus bei Fehlern.
 
-### `append_to_log(index, date, time_str, temperature, status)`
-Fügt einen neuen Eintrag in die Logdatei hinzu.
+### `DataLogger`
+Eine Klasse zur Verwaltung der Logdatei:
+- `initialize_log()`: Erstellt die Logdatei, falls sie nicht existiert.
+- `get_last_index()`: Holt den letzten Index aus der Logdatei.
+- `log_entry(temp, status)`: Speichert einen neuen Eintrag in die Logdatei.
 
 ### `main()`
-Die Hauptschleife zur Überwachung des Reed-Sensors und der Temperatur. Sendet Daten an Node-RED und protokolliert Ereignisse.
+Die Hauptschleife zur Überwachung des Reed-Sensors und der Temperatur. Es werden Daten an Node-RED gesendet und Ereignisse protokolliert. Bei plötzlichen Temperaturabfällen wird eine Alarmmeldung gesendet.
 
 ## Logging
 Das Skript speichert Ereignisse in einer CSV-Datei namens `log.csv` im folgenden Format:
@@ -85,8 +96,10 @@ Das Skript enthält Fehlerbehandlungslogik für:
 
 ## Beispielausgabe
 ```
-Connecting to Wi-Fi...
-Wi-Fi connected: ('192.168.0.100', '255.255.255.0', '192.168.0.1', '8.8.8.8')
+Verbinde mit G101...
+Verbunden!
+IP: 192.168.0.100
+Zeit synchronisiert: (2025, 1, 1, 12, 0, 0, 2, 1)
 Current reed state: 1
 Current temperature: 22.5°C
 Data sent successfully.
