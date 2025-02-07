@@ -1,5 +1,13 @@
 [
     {
+        "id": "a3d1e43acf796ed7",
+        "type": "tab",
+        "label": "Flow_Ui_stable_tts_active",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
         "id": "e8f3b019cf5563ad",
         "type": "http in",
         "z": "a3d1e43acf796ed7",
@@ -22,7 +30,7 @@
         "type": "function",
         "z": "a3d1e43acf796ed7",
         "name": "Reed Switch Processing",
-        "func": "var reedState = msg.payload.reed_state;\n\n// Convert reed state to text\nvar reedStateText = reedState === 0 ? \"closed\" : \"open\";\n\n// Send to UI\nmsg.payload = { \"reed_state\": reedStateText };\nreturn msg;",
+        "func": "var reedState = msg.payload.reed_state;\n\n// Convert reed state to text\nvar reedStateText = reedState === 0 ? \"geschlossen\" : \"geöffnet\";\n\n// Send to UI\nmsg.payload = { \"reed_state\": reedStateText };\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -47,7 +55,7 @@
         "width": 0,
         "height": 0,
         "name": "Reed State Text",
-        "label": "The window is ",
+        "label": "Das Fenster ist",
         "format": "{{msg.payload.reed_state}}",
         "layout": "",
         "className": "",
@@ -134,8 +142,7 @@
         "wires": [
             [
                 "708e09cdf76be208",
-                "cf73a5bc792708b6",
-                "0bb7c3743486740d"
+                "cf73a5bc792708b6"
             ]
         ]
     },
@@ -146,7 +153,7 @@
         "name": "Play Audio",
         "voice": "3",
         "x": 810,
-        "y": 340,
+        "y": 360,
         "wires": []
     },
     {
@@ -162,7 +169,8 @@
         "y": 220,
         "wires": [
             [
-                "8a750a842eb307bf"
+                "8a750a842eb307bf",
+                "2ba3e21c8348e571"
             ]
         ]
     },
@@ -185,29 +193,56 @@
         "statusCode": "200",
         "headers": {},
         "x": 820,
-        "y": 300,
+        "y": 320,
         "wires": []
     },
     {
-        "id": "0bb7c3743486740d",
-        "type": "ui_text",
+        "id": "85a56e76bc65e6d6",
+        "type": "ui_gauge",
         "z": "a3d1e43acf796ed7",
+        "name": "",
         "group": "f4e29f99.0f3a1",
-        "order": 1,
+        "order": 4,
         "width": 0,
         "height": 0,
-        "name": "Reed State Text",
-        "label": "Warning: ",
-        "format": "{{msg.payload.alert_state}}",
-        "layout": "",
+        "gtype": "gage",
+        "title": "Aktuelle Temperatur",
+        "label": "°C",
+        "format": "{{value}} °C",
+        "min": "-20",
+        "max": "100",
+        "colors": [
+            "#001eb3",
+            "#e6bf00",
+            "#cb3a3a"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
         "className": "",
-        "style": false,
-        "font": "",
-        "fontSize": "",
-        "color": "#000000",
-        "x": 820,
-        "y": 380,
+        "x": 840,
+        "y": 260,
         "wires": []
+    },
+    {
+        "id": "2ba3e21c8348e571",
+        "type": "function",
+        "z": "a3d1e43acf796ed7",
+        "name": "temperature_value",
+        "func": "var temperature = msg.payload.temperature;\n\n// Ensure the temperature is a number and round it to 2 decimal places\ntemperature = parseFloat(temperature).toFixed(2);\n\n// Store the temperature in the flow context (if needed)\nflow.set('temperature', temperature);\n\n// Send the temperature directly to the gauge UI (as a number)\nmsg.payload = parseFloat(temperature);  // This sends only the temperature number, not an object\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 570,
+        "y": 260,
+        "wires": [
+            [
+                "85a56e76bc65e6d6"
+            ]
+        ]
     },
     {
         "id": "f4e29f99.0f3a1",
