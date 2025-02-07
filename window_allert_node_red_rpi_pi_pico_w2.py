@@ -14,12 +14,13 @@ TEMP_ALERT_THRESHOLD = 2  # Temperaturunterschied in °C
 
 # Netzwerk-Konfiguration (SSID, Passwort und URL des Node-RED-Servers)
 WIFI_CONFIG = [
-    {"ssid": "SSID_1", "password": "PASSWORT_1", "url": "http://192.168.0.58:1880"},
-    {"ssid": "SSID_2", "password": "PASSWORT_2", "url": "http://192.168.0.58:1880"},
-    {"ssid": "SSID_3", "password": "PASSWORT_3", "url": "http://10.242.217.27:1880"}
+    {"ssid": "G101", "password": "G101bbzvk", "url": "http://192.168.0.199:1880"},
+    {"ssid": "@Home", "password": "th!s !s a test for wlan", "url": "http://192.168.0.58:1880"},
+    {"ssid": "Pixel_4813", "password": "9ad702b6c353", "url": "http://10.242.217.27:1880"}
 ]
 
 NODE_RED_BASE_URL = ""  # Wird später aus der Konfiguration gesetzt
+
 ENDPOINTS = {
     "reed": "/reed_sensor",
     "temp": "/temp_sensor",
@@ -54,13 +55,15 @@ def connect_wifi():
                 if DEBUG:
                     print("Verbunden!")
                     print("IP:", wlan.ifconfig()[0])
-                NODE_RED_BASE_URL = network_config["url"]  
-                print(f"Verwendete URL für Node-RED: {NODE_RED_BASE_URL}")
+                NODE_RED_BASE_URL = network_config["url"]
+                if DEBUG:
+                    print(f"Verwendete URL für Node-RED: {NODE_RED_BASE_URL}")
                 sync_time()
                 return True
             time.sleep(0.5)
     
-    print("Keine WLAN-Verbindung möglich")
+    if DEBUG:
+        print("Keine WLAN-Verbindung möglich")
     return False
 
 def sync_time():
@@ -140,40 +143,46 @@ class DataLogger:
 def main():
     logger = DataLogger()
     last_reed_state = reed.value()
-    last_temp = None
-    alert_cooldown = False
+    last_temp = read_temperature()
+
 
     if not connect_wifi():
         return
 
     # Initialzustand senden, Erstausführung
     send_data(NODE_RED_BASE_URL + ENDPOINTS["reed"], {"reed_state": last_reed_state})
+    
     while True:
         # Reed-Sensor prüfen
         current_reed = reed.value()
+
         if current_reed != last_reed_state:
             temp = read_temperature()
-            logger.log_entry(temp, current_reed)
-            send_data(NODE_RED_BASE_URL + ENDPOINTS["reed"], {"reed_state": current_reed})
+            if temp is not None:
+                last_temp = temp  # Setze die Temperatur beim Öffnen/Schließen des Reed-Sensors
+                logger.log_entry(temp, current_reed)
+                send_data(NODE_RED_BASE_URL + ENDPOINTS["reed"], {"reed_state": current_reed})
             last_reed_state = current_reed
 
-        # Temperaturüberwachung
-        current_temp = read_temperature()
-        if current_temp is not None:
-            if last_temp is not None:
-                if (last_temp - current_temp) >= TEMP_ALERT_THRESHOLD and not alert_cooldown:
-                    send_data(NODE_RED_BASE_URL + ENDPOINTS["alert"], {
-                        "alert": f"Temperatursturz! Von {last_temp}°C auf {current_temp}°C",
-                        "temperature": current_temp
-                    })
-                    alert_cooldown = True
-            
-            send_data(NODE_RED_BASE_URL + ENDPOINTS["temp"], {"temperature": current_temp})
-            last_temp = current_temp
+        # Temperaturüberwachung, nur wenn die Reed-Sensoränderung vorliegt
+        if last_temp is not None:
+            current_temp = read_temperature()
+            if current_temp is not None:
+                temp_difference = last_temp - current_temp
+                if DEBUG:
+                    print(f"Letzte gemessene Temperatur nach öffnen/schließen des Fensters: {last_temp} °C")
+                    print(f"Aktuelle Temperatur: {current_temp} °C")
+                    print(f"Temperaturdifferenz: {temp_difference} °C")  # Debug-Ausgabe für Differenz
 
-        # Cooldown-Reset
-        if alert_cooldown:
-            alert_cooldown = False
+                # Überprüfen, ob der Temperaturabfall von mindestens 2°C vorhanden ist
+                if temp_difference >= TEMP_ALERT_THRESHOLD and current_temp < last_temp:
+                    send_data(NODE_RED_BASE_URL + ENDPOINTS["alert"], {"temperature": current_temp})
+
+                    last_temp = current_temp
+
+                # Temperaturwert weiterverfolgen und zur Node-RED-API senden
+                send_data(NODE_RED_BASE_URL + ENDPOINTS["temp"], {"temperature": current_temp})
+                
 
         time.sleep(SENSOR_READ_INTERVAL)
 
